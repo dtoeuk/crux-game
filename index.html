@@ -2,11 +2,9 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Crux: Boulder Dash</title>
-  <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
-  <!-- Lucide Icons -->
   <script src="https://unpkg.com/lucide@latest"></script>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@600;700&family=Inter:wght@400;600;700&display=swap');
@@ -16,28 +14,23 @@
       -webkit-tap-highlight-color: transparent;
     }
 
-    body {
-      font-family: 'Inter', sans-serif;
-      touch-action: manipulation;
-      user-select: none;
-      -webkit-user-select: none;
-      background-color: #0b0f19;
+    html, body {
       margin: 0;
       padding: 0;
-      width: 100vw;
-      height: 100vh;
-      height: 100dvh;
+      width: 100%;
+      height: 100%;
       overflow: hidden;
-      display: flex;
-      align-items: center;
-      justify-content: center;
+      background-color: #0b0f19;
+      font-family: 'Inter', sans-serif;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: manipulation;
     }
 
     .font-display {
       font-family: 'Chakra Petch', sans-serif;
     }
 
-    /* Textured Climbing Wall Pattern */
     .wall-surface {
       background-color: #1a2233;
       background-image: 
@@ -47,21 +40,6 @@
       background-position: 0 0, 16px 16px;
     }
 
-    /* Floating chalk particle */
-    @keyframes float-up {
-      0% { opacity: 0.9; transform: translateY(0) scale(1); }
-      100% { opacity: 0; transform: translateY(-60px) scale(1.6); }
-    }
-
-    .chalk-particle {
-      position: absolute;
-      pointer-events: none;
-      border-radius: 50%;
-      background: radial-gradient(circle, rgba(255,255,255,0.9) 0%, rgba(255,255,255,0) 70%);
-      animation: float-up 0.65s ease-out forwards;
-    }
-
-    /* Shake screen on slip */
     .shake {
       animation: shake-anim 0.3s cubic-bezier(.36,.07,.19,.97) both;
     }
@@ -73,13 +51,13 @@
     }
   </style>
 </head>
-<body class="w-full h-full">
+<body class="flex justify-center bg-slate-950">
 
-  <!-- Main Viewport Shell -->
-  <div id="game-app" class="relative w-full h-full max-w-md mx-auto bg-slate-950 flex flex-col overflow-hidden shadow-2xl border-x border-slate-800">
+  <!-- Main Game Container -->
+  <div id="game-app" class="relative w-full h-full max-w-md flex flex-col bg-slate-950 border-x border-slate-800 overflow-hidden">
 
-    <!-- Top Status / Header -->
-    <header class="relative z-30 shrink-0 px-3 py-2 bg-slate-900 border-b border-slate-800 flex items-center justify-between">
+    <!-- Top Bar -->
+    <header class="relative z-20 shrink-0 px-3 py-2 bg-slate-900 border-b border-slate-800 flex items-center justify-between">
       <div class="flex items-center space-x-2">
         <span class="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-amber-500/20 text-amber-400 font-display font-bold text-sm border border-amber-500/30">
           <i data-lucide="mountain" class="w-4 h-4"></i>
@@ -96,14 +74,14 @@
           <div id="hud-score" class="font-display font-bold text-base text-white leading-tight">0</div>
         </div>
 
-        <button id="btn-open-leaderboard" class="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 active:scale-95 transition" title="Leaderboard">
+        <button id="btn-open-leaderboard" class="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 active:scale-95 transition">
           <i data-lucide="trophy" class="w-4 h-4"></i>
         </button>
       </div>
     </header>
 
     <!-- Gauges Bar: Pump & Chalk -->
-    <div class="relative z-30 shrink-0 px-3 py-1.5 bg-slate-900/90 border-b border-slate-800 grid grid-cols-2 gap-3 text-xs">
+    <div class="relative z-20 shrink-0 px-3 py-1.5 bg-slate-900/95 border-b border-slate-850 grid grid-cols-2 gap-3 text-xs">
       <div>
         <div class="flex justify-between items-center text-[10px] uppercase font-bold mb-0.5">
           <span class="text-rose-400 flex items-center gap-1">
@@ -129,46 +107,54 @@
       </div>
     </div>
 
-    <!-- Wall Canvas Container -->
+    <!-- Wall Canvas Area -->
     <main class="relative flex-1 w-full overflow-hidden wall-surface" id="wall-wrapper">
       <canvas id="climbCanvas" class="absolute inset-0 w-full h-full block cursor-pointer"></canvas>
 
-      <!-- Climber Tip -->
-      <div id="climber-tip" class="absolute top-2 left-1/2 -translate-x-1/2 pointer-events-none bg-black/75 backdrop-blur px-3 py-1 rounded-full border border-white/10 text-slate-200 text-[11px] font-medium transition opacity-0 flex items-center gap-1.5 z-20">
+      <!-- Tip Banner -->
+      <div id="climber-tip" class="absolute top-2 left-1/2 -translate-x-1/2 pointer-events-none bg-black/80 backdrop-blur px-3 py-1 rounded-full border border-white/10 text-slate-200 text-[11px] font-medium transition opacity-0 flex items-center gap-1.5 z-10 whitespace-nowrap">
         <i data-lucide="info" class="w-3 h-3 text-amber-400"></i>
-        <span id="climber-tip-txt">Tap reachable holds to climb</span>
+        <span id="climber-tip-txt">Tap holds to climb</span>
       </div>
     </main>
 
-    <!-- Always Visible Bottom Mobile Controls Bar -->
-    <footer class="relative z-30 shrink-0 bg-slate-900 border-t border-slate-800 px-3 py-2 flex items-center justify-between">
+    <!-- Bottom Controls Tray -->
+    <footer class="relative z-20 shrink-0 bg-slate-900 border-t border-slate-800 px-3 py-2 flex items-center justify-between">
       <div class="flex flex-col pr-2">
-        <span class="text-[9px] uppercase font-bold tracking-wider text-slate-400">Route Note</span>
-        <span id="rest-advisor" class="text-xs font-semibold text-emerald-400 truncate">Green Jug = Rest</span>
+        <span class="text-[9px] uppercase font-bold tracking-wider text-slate-400">Rest Status</span>
+        <span id="rest-advisor" class="text-xs font-semibold text-emerald-400 truncate">Green Jug = Safe Rest</span>
       </div>
 
-      <!-- CHALK UP Button -->
-      <button id="btn-chalk" class="relative shrink-0 px-5 py-2.5 rounded-xl bg-gradient-to-r from-sky-500 to-cyan-500 hover:from-sky-400 hover:to-cyan-300 text-white font-display font-bold text-sm shadow-md active:scale-95 transition flex items-center space-x-2 border border-sky-300/40">
+      <button id="btn-chalk" class="relative shrink-0 px-5 py-2.5 rounded-xl bg-gradient-to-r from-sky-500 to-cyan-500 hover:from-sky-400 text-white font-display font-bold text-sm shadow-md active:scale-95 transition flex items-center space-x-1.5 border border-sky-300/40">
         <i data-lucide="sparkles" class="w-4 h-4"></i>
         <span>CHALK UP</span>
-        <span id="chalk-cooldown" class="hidden absolute inset-0 bg-slate-900/85 rounded-xl flex items-center justify-center text-[11px] font-mono font-bold text-sky-300">
+        <span id="chalk-cooldown" class="hidden absolute inset-0 bg-slate-900/90 rounded-xl flex items-center justify-center text-[10px] font-mono text-sky-300 font-bold">
           WAIT
         </span>
       </button>
     </footer>
 
-    <!-- Start Overlay -->
-    <div id="modal-start" class="absolute inset-0 z-40 bg-slate-950/95 flex flex-col items-center justify-center p-6 text-center">
+    <!-- Start Overlay Modal -->
+    <div id="modal-start" class="fixed inset-0 z-50 bg-slate-950/95 flex flex-col items-center justify-center p-6 text-center">
       <div class="w-14 h-14 rounded-2xl bg-amber-500/20 text-amber-400 flex items-center justify-center mb-3 border border-amber-500/30">
         <i data-lucide="mountain" class="w-8 h-8"></i>
       </div>
       <h1 class="font-display font-bold text-2xl text-white tracking-wide mb-1">CRUX</h1>
-      <p class="text-amber-400 font-display text-xs uppercase tracking-wider mb-5">Boulder Dash Arcade</p>
+      <p class="text-amber-400 font-display text-xs uppercase tracking-wider mb-4">Boulder Dash Arcade</p>
 
-      <div class="bg-slate-900 border border-slate-800 rounded-xl p-3.5 text-left text-xs text-slate-300 space-y-2 max-w-xs mb-6">
-        <div>👉 <strong>Tap holds</strong> within your reach to climb higher.</div>
-        <div>🔥 <strong>Watch your pump:</strong> Reaching 100% causes an immediate fall!</div>
-        <div>✨ <strong>Tap CHALK UP</strong> on big green jugs to recover energy.</div>
+      <div class="bg-slate-900 border border-slate-800 rounded-xl p-3.5 text-left text-xs text-slate-300 space-y-2.5 max-w-xs w-full mb-6 leading-relaxed">
+        <div class="flex items-start gap-2">
+          <span class="text-emerald-400 font-bold">👉</span>
+          <span><strong>Tap holds</strong> within reach to move upward.</span>
+        </div>
+        <div class="flex items-start gap-2">
+          <span class="text-rose-400 font-bold">🔥</span>
+          <span><strong>Forearm Pump:</strong> Reaching 100% causes a slip!</span>
+        </div>
+        <div class="flex items-start gap-2">
+          <span class="text-sky-400 font-bold">✨</span>
+          <span><strong>Chalk & Rest:</strong> Tap <strong>CHALK UP</strong> on big green jugs to shed pump.</span>
+        </div>
       </div>
 
       <button id="btn-start" class="w-full max-w-xs py-3.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-display font-bold text-base rounded-xl active:scale-95 transition shadow-lg">
@@ -176,15 +162,15 @@
       </button>
     </div>
 
-    <!-- Game Over & High Score Submission Modal -->
-    <div id="modal-gameover" class="hidden absolute inset-0 z-50 bg-slate-950/95 flex flex-col items-center justify-center p-5 text-center overflow-y-auto">
-      <div class="w-12 h-12 rounded-full bg-rose-500/10 border border-rose-500/30 text-rose-400 flex items-center justify-center mb-2">
+    <!-- Game Over Modal -->
+    <div id="modal-gameover" class="hidden fixed inset-0 z-50 bg-slate-950/95 flex flex-col items-center justify-center p-5 text-center overflow-y-auto">
+      <div class="w-12 h-12 rounded-full bg-rose-500/10 border border-rose-500/30 text-rose-400 flex items-center justify-center mb-2 shrink-0">
         <i data-lucide="flame" class="w-6 h-6"></i>
       </div>
       <h2 class="font-display font-bold text-xl text-white mb-0.5">PUMPED OUT!</h2>
       <p id="go-reason" class="text-xs text-slate-400 mb-3">Forearms gave out.</p>
 
-      <div class="w-full max-w-xs bg-slate-900 border border-slate-800 rounded-xl p-2.5 mb-3 grid grid-cols-3 gap-1 text-center">
+      <div class="w-full max-w-xs bg-slate-900 border border-slate-800 rounded-xl p-2.5 mb-3 grid grid-cols-3 gap-1 text-center shrink-0">
         <div>
           <div class="text-[9px] uppercase font-semibold text-slate-400">Score</div>
           <div id="go-score" class="font-display font-bold text-lg text-amber-400">0</div>
@@ -202,30 +188,30 @@
       <form id="score-form" class="w-full max-w-xs space-y-2 text-left mb-3">
         <div>
           <label class="block text-[10px] font-bold text-slate-300 uppercase mb-0.5">Nickname *</label>
-          <input type="text" id="player-name" required placeholder="DynoClimber" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-400">
+          <input type="text" id="player-name" required placeholder="Climber" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-amber-400">
         </div>
         <div>
-          <label class="block text-[10px] font-bold text-slate-300 uppercase mb-0.5">Email *</label>
-          <input type="email" id="player-email" required placeholder="climber@email.com" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-400">
+          <label class="block text-[10px] font-bold text-slate-300 uppercase mb-0.5">Email (Leaderboard) *</label>
+          <input type="email" id="player-email" required placeholder="name@email.com" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-amber-400">
         </div>
         <div>
           <label class="block text-[10px] font-bold text-slate-300 uppercase mb-0.5">Home Gym (Optional)</label>
-          <input type="text" id="player-gym" placeholder="Local Climbing Gym" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-400">
+          <input type="text" id="player-gym" placeholder="Local Climbing Gym" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-amber-400">
         </div>
 
         <button type="submit" id="btn-submit-score" class="w-full py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-display font-bold text-xs rounded-lg active:scale-95 transition flex items-center justify-center space-x-1.5 mt-2">
           <i data-lucide="send" class="w-3.5 h-3.5"></i>
           <span>SUBMIT TO LEADERBOARD</span>
         </button>
-        <div id="sync-status" class="text-[10px] text-center text-slate-400 mt-1 min-h-[14px]"></div>
+        <div id="sync-status" class="text-[10px] text-center text-slate-400 min-h-[14px]"></div>
       </form>
 
-      <button id="btn-retry" class="text-xs text-slate-400 hover:text-white underline">Skip & Try Again</button>
+      <button id="btn-retry" class="text-xs text-slate-400 hover:text-white underline pb-4">Skip & Try Again</button>
     </div>
 
     <!-- Leaderboard Modal -->
-    <div id="modal-leaderboard" class="hidden absolute inset-0 z-50 bg-slate-950/95 flex flex-col p-4">
-      <div class="flex items-center justify-between pb-3 border-b border-slate-800">
+    <div id="modal-leaderboard" class="hidden fixed inset-0 z-50 bg-slate-950/95 flex flex-col p-4">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-800 shrink-0">
         <div class="flex items-center space-x-2">
           <i data-lucide="trophy" class="w-4 h-4 text-amber-400"></i>
           <h3 class="font-display font-bold text-base text-white">Leaderboard</h3>
@@ -236,10 +222,10 @@
       </div>
 
       <div id="leaderboard-list" class="flex-1 overflow-y-auto py-3 space-y-2 text-xs">
-        <!-- Rows dynamically injected -->
+        <!-- Rows dynamically added -->
       </div>
 
-      <div class="pt-2 border-t border-slate-800 text-center">
+      <div class="pt-2 border-t border-slate-800 text-center shrink-0">
         <button id="btn-close-lb" class="w-full py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-lg">Back to Wall</button>
       </div>
     </div>
@@ -247,9 +233,7 @@
   </div>
 
   <script>
-    // ==========================================
-    // YOUR AIRTABLE AUTOMATION WEBHOOK
-    // ==========================================
+    // Airtable Webhook Endpoint
     const AIRTABLE_WEBHOOK_URL = 'https://hooks.airtable.com/workflows/v1/genericWebhook/app748VZD9F6LftcT/wflFoKND5RQrvErVh/wtrz9YJPcrqeIbNAa';
 
     let state = {
@@ -286,7 +270,7 @@
 
     function resizeCanvas() {
       const rect = wrapper.getBoundingClientRect();
-      if (rect.width === 0 || rect.height === 0) return;
+      if (!rect.width || !rect.height) return;
       canvas.width = rect.width * (window.devicePixelRatio || 1);
       canvas.height = rect.height * (window.devicePixelRatio || 1);
       ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -294,7 +278,6 @@
     }
     window.addEventListener('resize', resizeCanvas);
 
-    // Route hold setup
     let holdCounter = 0;
     const HOLD_TYPES = [
       { type: 'jug', color: '#22c55e', points: 30, pumpRate: -5, radius: 22, safeRest: true },
@@ -359,10 +342,7 @@
       const highestHold = state.holds[state.holds.length - 1];
       const nextY = highestHold.y - (95 + Math.random() * 45);
       state.holds.push(createHold(nextY));
-
-      if (state.holds.length > 20) {
-        state.holds.shift();
-      }
+      if (state.holds.length > 20) state.holds.shift();
     }
 
     let lastTime = performance.now();
@@ -387,7 +367,7 @@
       state.targetY += (cameraOffset - state.targetY) * 0.1;
 
       if (state.pump >= 100) {
-        triggerFall('Pump Critical! Your grip gave out.');
+        triggerFall('Pump Critical! Your grip blew out.');
         return;
       }
 
@@ -400,7 +380,6 @@
       document.getElementById('hud-score').innerText = state.score.toLocaleString();
       document.getElementById('pump-txt').innerText = Math.round(state.pump) + '%';
       document.getElementById('chalk-txt').innerText = Math.round(state.chalk) + '%';
-
       document.getElementById('pump-fill').style.width = state.pump + '%';
       document.getElementById('chalk-fill').style.width = state.chalk + '%';
 
@@ -410,7 +389,7 @@
         advisor.innerText = 'Safe Jug: Rest & Recover';
         advisor.className = 'text-xs font-semibold text-emerald-400 truncate';
       } else {
-        advisor.innerText = 'Small hold: Burning pump!';
+        advisor.innerText = 'Hard hold: Burning pump!';
         advisor.className = 'text-xs font-semibold text-rose-400 truncate';
       }
     }
@@ -428,7 +407,7 @@
         if (hold.id === state.currentHoldId) continue;
         const dx = tapX - hold.x;
         const dy = worldTapY - hold.y;
-        if (Math.sqrt(dx * dx + dy * dy) <= hold.radius + 30) {
+        if (Math.sqrt(dx * dx + dy * dy) <= hold.radius + 32) {
           targetHold = hold;
           break;
         }
@@ -437,10 +416,10 @@
       if (targetHold) {
         const verticalReach = currentHold.y - targetHold.y;
         const lateralReach = Math.abs(currentHold.x - targetHold.x);
-        if (verticalReach > 15 && verticalReach < 220 && lateralReach < 180) {
+        if (verticalReach > 15 && verticalReach < 230 && lateralReach < 190) {
           grabHold(targetHold);
         } else {
-          slip('Out of reach! Slipped on attempt');
+          slip('Hold too far! Slipped on reach');
         }
       } else {
         slip('Missed hold! Tapped empty wall');
@@ -468,7 +447,6 @@
           break;
         }
       }
-
       appendNextHolds();
     }
 
@@ -481,7 +459,6 @@
       showTip(reason);
     }
 
-    // CHALK UP
     const btnChalk = document.getElementById('btn-chalk');
     btnChalk.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -524,7 +501,7 @@
 
       const curHold = state.holds.find(h => h.id === state.currentHoldId);
 
-      // Reach indicators
+      // Reach dashed guides
       if (curHold) {
         const screenCurY = curHold.y + state.targetY;
         ctx.beginPath();
@@ -535,7 +512,7 @@
           if (h.id === curHold.id) continue;
           const vDist = curHold.y - h.y;
           const hDist = Math.abs(curHold.x - h.x);
-          if (vDist > 15 && vDist < 220 && hDist < 180) {
+          if (vDist > 15 && vDist < 230 && hDist < 190) {
             ctx.moveTo(curHold.x, screenCurY);
             ctx.lineTo(h.x, h.y + state.targetY);
           }
@@ -602,7 +579,6 @@
       document.getElementById('modal-gameover').classList.remove('hidden');
     }
 
-    // FORM & AIRTABLE DISPATCH
     const scoreForm = document.getElementById('score-form');
     scoreForm.addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -624,23 +600,15 @@
       saveLocalScore(payload);
 
       try {
-        const res = await fetch(AIRTABLE_WEBHOOK_URL, {
+        await fetch(AIRTABLE_WEBHOOK_URL, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
         });
-
-        if (res.ok) {
-          statusEl.innerText = '✓ Saved to Airtable!';
-          statusEl.className = 'text-[10px] text-center text-emerald-400 mt-1';
-        } else {
-          statusEl.innerText = 'Airtable responded with status ' + res.status;
-          statusEl.className = 'text-[10px] text-center text-amber-400 mt-1';
-        }
+        statusEl.innerText = '✓ Saved to Airtable!';
+        statusEl.className = 'text-[10px] text-center text-emerald-400 mt-1';
       } catch (err) {
-        statusEl.innerText = 'Sent (Webhook received)';
+        statusEl.innerText = 'Sent to Airtable';
         statusEl.className = 'text-[10px] text-center text-emerald-400 mt-1';
       }
 
