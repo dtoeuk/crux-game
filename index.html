@@ -1,0 +1,1497 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Crux: Boulder Dash</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Font Awesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- Google Fonts Inter & Outfit for sporty modern typography -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;900&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            display: ['Outfit', 'sans-serif'],
+          },
+          colors: {
+            wall: '#171923',
+            holdGreen: '#10B981', // Jug
+            holdYellow: '#FBBF24', // Crimp
+            holdPurple: '#A855F7', // Sloper
+            holdRed: '#EF4444',    // Dyno
+            chalk: '#F3F4F6'
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    /* Custom arcade accents and animations */
+    body {
+      touch-action: manipulation;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    .neon-glow {
+      box-shadow: 0 0 25px rgba(245, 158, 11, 0.4);
+    }
+    .chalk-pulse {
+      animation: pulseChalk 1.5s infinite;
+    }
+    @keyframes pulseChalk {
+      0%, 100% { opacity: 0.9; }
+      50% { opacity: 0.4; }
+    }
+    /* Custom scrollbar for leaderboard & modal */
+    ::-webkit-scrollbar {
+      width: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: rgba(15, 23, 42, 0.5);
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #475569;
+      border-radius: 4px;
+    }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 font-sans flex flex-col items-center justify-center min-h-screen p-2 sm:p-4 overflow-x-hidden antialiased">
+
+  <!-- Top App Container (Optimized for Softr Embeds) -->
+  <div class="relative w-full max-w-md bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl overflow-hidden flex flex-col h-[780px] max-h-[96vh]">
+    
+    <!-- Top Navigation & Status Bar -->
+    <header class="flex items-center justify-between px-4 py-3 bg-slate-950/80 backdrop-blur border-b border-slate-800 z-20">
+      <div class="flex items-center gap-2">
+        <div class="w-8 h-8 rounded-lg bg-gradient-to-tr from-amber-500 to-orange-500 flex items-center justify-center text-slate-950 font-black font-display shadow-md">
+          <i class="fa-solid fa-mountain text-xs"></i>
+        </div>
+        <div>
+          <h1 class="font-display font-black text-sm tracking-wide text-white leading-tight">CRUX: BOULDER DASH</h1>
+          <p class="text-[10px] text-amber-400 font-semibold uppercase tracking-wider flex items-center gap-1">
+            <span class="inline-block w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span>
+            Airtable Synced
+          </p>
+        </div>
+      </div>
+
+      <!-- Action buttons -->
+      <div class="flex items-center gap-2">
+        <button id="soundToggleBtn" aria-label="Toggle Sound" class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center transition border border-slate-700">
+          <i id="soundIcon" class="fa-solid fa-volume-high text-xs"></i>
+        </button>
+        <button id="guideBtn" title="Integration Guide for Softr/Airtable" class="px-2.5 h-8 rounded-lg bg-indigo-600/30 text-indigo-300 hover:bg-indigo-600/50 flex items-center gap-1.5 text-xs font-semibold border border-indigo-500/30 transition">
+          <i class="fa-solid fa-plug text-[11px]"></i>
+          <span>Setup</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Sub-Nav / Tabs -->
+    <div class="grid grid-cols-2 bg-slate-950/60 p-1 border-b border-slate-800 text-xs font-semibold z-20">
+      <button id="tabWall" class="py-1.5 rounded-lg bg-amber-500 text-slate-950 font-bold transition flex items-center justify-center gap-1.5 shadow-sm">
+        <i class="fa-solid fa-person-climbing"></i> The Wall
+      </button>
+      <button id="tabLeaderboard" class="py-1.5 rounded-lg text-slate-400 hover:text-white transition flex items-center justify-center gap-1.5">
+        <i class="fa-solid fa-trophy text-amber-400"></i> Leaderboard
+      </button>
+    </div>
+
+    <!-- Active Game Viewport -->
+    <div id="gameView" class="relative flex-1 bg-slate-950 flex flex-col overflow-hidden">
+      
+      <!-- In-Game HUD Overlay -->
+      <div id="hud" class="absolute top-2 left-2 right-2 flex justify-between items-start pointer-events-none z-10 gap-2">
+        <!-- Grade & Score Badge -->
+        <div class="bg-slate-900/90 border border-slate-700/80 backdrop-blur rounded-xl px-3 py-1.5 shadow-lg flex flex-col min-w-[100px]">
+          <span class="text-[9px] uppercase font-bold text-slate-400">Current Grade</span>
+          <div class="flex items-baseline gap-1.5">
+            <span id="gradeBadge" class="font-display font-black text-amber-400 text-lg leading-tight">V0</span>
+            <span class="text-xs text-slate-300 font-semibold">(<span id="scoreVal">0</span> pts)</span>
+          </div>
+          <span id="comboBadge" class="text-[9px] font-bold text-amber-300 tracking-wider uppercase opacity-0 transition-opacity">1x Flash</span>
+          <span id="cruxAlert" class="text-[9px] font-black text-red-400 tracking-wider uppercase hidden animate-pulse">⚠️ CRUX SECTION!</span>
+        </div>
+
+        <!-- Dual Meters: Forearm Pump & Chalk Level -->
+        <div class="flex flex-col gap-1.5 w-44">
+          <!-- Forearm Pump Meter -->
+          <div class="bg-slate-900/90 border border-slate-700/80 backdrop-blur rounded-xl px-2.5 py-1.5 shadow-lg">
+            <div class="flex items-center justify-between text-[10px] font-bold">
+              <span class="text-slate-300 flex items-center gap-1">
+                <i class="fa-solid fa-fire-flame-curved text-red-400"></i> FOREARM PUMP
+              </span>
+              <span id="pumpPercent" class="text-emerald-400 font-mono">0%</span>
+            </div>
+            <div class="w-full bg-slate-800 h-2 rounded-full overflow-hidden mt-1 border border-slate-700/50">
+              <div id="pumpFill" class="bg-gradient-to-r from-emerald-500 via-amber-400 to-red-500 h-full w-0 transition-all duration-75"></div>
+            </div>
+            <div class="flex justify-between items-center text-[8px] text-slate-400 mt-0.5">
+              <span id="restStatusTxt">Only jugs allow rest</span>
+              <span id="pumpWarning" class="font-bold text-red-400 hidden animate-pulse">PUMP CRITICAL!</span>
+            </div>
+          </div>
+
+          <!-- Chalk Grip Meter -->
+          <div class="bg-slate-900/90 border border-slate-700/80 backdrop-blur rounded-xl px-2.5 py-1.5 shadow-lg">
+            <div class="flex items-center justify-between text-[10px] font-bold">
+              <span class="text-slate-300 flex items-center gap-1">
+                <i class="fa-solid fa-hand text-cyan-300"></i> CHALK GRIP
+              </span>
+              <span id="chalkPercent" class="text-cyan-400 font-mono">100%</span>
+            </div>
+            <div class="w-full bg-slate-800 h-2 rounded-full overflow-hidden mt-1 border border-slate-700/50">
+              <div id="chalkFill" class="bg-cyan-400 h-full w-full transition-all duration-75"></div>
+            </div>
+            <div id="chalkCooldownBar" class="w-full bg-slate-950 h-1 rounded-full overflow-hidden mt-1 hidden">
+              <div id="chalkCooldownFill" class="bg-amber-400 h-full w-full"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Canvas for Interactive Climbing -->
+      <canvas id="climbingCanvas" class="w-full h-full block cursor-pointer"></canvas>
+
+      <!-- Bottom Touch Action Bar - Mobile-First Floating Dock (Hold Tapping + Chalk Button) -->
+      <!-- Elevated & clear of bottom-left Softr badge and mobile nav bar -->
+      <div class="absolute bottom-16 left-3 right-3 flex items-center justify-end pointer-events-none z-10 gap-2 pb-2">
+        <!-- Target indicator notification banner (Centered/Right-leaning, avoids bottom-left) -->
+        <div id="actionHint" class="pointer-events-auto flex-1 bg-slate-900/95 border border-slate-700/80 backdrop-blur py-2 px-3 rounded-xl text-[11px] font-bold tracking-wide text-amber-300 shadow-lg truncate">
+          Tap the highlighted hold on the wall to climb!
+        </div>
+
+        <!-- Chalk Up & Rest Floating Action Button (Thumb-Friendly on the Right) -->
+        <button id="chalkBtn" class="pointer-events-auto h-12 px-5 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 active:scale-95 text-white font-display font-black text-xs uppercase tracking-wider rounded-xl shadow-xl border border-cyan-400/50 flex items-center gap-2 transition shrink-0">
+          <i class="fa-solid fa-soap text-sm"></i>
+          <span>CHALK UP</span>
+        </button>
+      </div>
+
+      <!-- Start Screen Overlay -->
+      <div id="startOverlay" class="absolute inset-0 bg-slate-950/85 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center z-30 transition-all">
+        <div class="w-16 h-16 rounded-2xl bg-gradient-to-tr from-amber-500 to-orange-500 flex items-center justify-center text-slate-950 font-black text-3xl shadow-xl shadow-amber-500/20 mb-3 animate-bounce">
+          <i class="fa-solid fa-mountain"></i>
+        </div>
+        <h2 class="font-display font-black text-3xl text-white tracking-wide mb-1">CRUX</h2>
+        <p class="text-xs text-amber-400 font-bold uppercase tracking-widest mb-3">BOULDER DASH</p>
+        
+        <p class="text-xs text-slate-300 max-w-xs mb-3 leading-relaxed">
+          Mobile-first direct wall climbing! Tap reachable holds directly on the wall. Missing the hold or tapping blank wood causes immediate slips!
+        </p>
+
+        <!-- Hardcore Mechanics Warning Card -->
+        <div class="grid grid-cols-2 gap-2 w-full max-w-xs text-[11px] mb-3 bg-slate-900/90 border border-slate-800 p-2.5 rounded-xl text-left">
+          <div class="flex flex-col">
+            <span class="font-bold text-red-400 flex items-center gap-1">
+              <i class="fa-solid fa-hand-pointer"></i> Tap Target Holds
+            </span>
+            <span class="text-slate-400 text-[10px]">Next hold pulses with a chalk ring. Missing or tapping blank wall spikes pump by +24%!</span>
+          </div>
+          <div class="flex flex-col">
+            <span class="font-bold text-amber-400 flex items-center gap-1">
+              <i class="fa-solid fa-ban"></i> Rest on Jugs
+            </span>
+            <span class="text-slate-400 text-[10px]">Chalking up on crimps/slopers increases pump. Rest only on green jugs!</span>
+          </div>
+        </div>
+
+        <!-- Hold Legend -->
+        <div class="grid grid-cols-2 gap-2 w-full max-w-xs text-[11px] mb-5 bg-slate-900/90 border border-slate-800 p-2.5 rounded-xl text-left">
+          <div class="flex items-center gap-2">
+            <span class="w-3.5 h-3.5 rounded-full bg-emerald-500 inline-block"></span>
+            <span class="text-slate-200">Jug (Safe rest & chalk)</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="w-3.5 h-3.5 rounded-sm bg-yellow-400 inline-block"></span>
+            <span class="text-slate-200">Crimp (Rapid pump spike)</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="w-3.5 h-3.5 rounded-full bg-purple-500 inline-block"></span>
+            <span class="text-slate-200">Sloper (Severe grip drain)</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="w-3.5 h-3.5 rounded-lg bg-red-500 inline-block"></span>
+            <span class="text-slate-200">Dyno (Precision timing)</span>
+          </div>
+        </div>
+
+        <button id="startGameBtn" class="w-full max-w-xs py-3.5 bg-gradient-to-r from-amber-400 to-orange-500 hover:from-amber-300 hover:to-orange-400 active:scale-95 text-slate-950 font-display font-black text-base uppercase tracking-wider rounded-xl shadow-lg border border-amber-300 flex items-center justify-center gap-2 transition">
+          <i class="fa-solid fa-play"></i> START CLIMB
+        </button>
+      </div>
+
+      <!-- Game Over / Pump Out Modal -->
+      <div id="gameOverModal" class="hidden absolute inset-0 bg-slate-950/95 backdrop-blur-md flex-col items-center justify-center p-6 text-center z-30">
+        <div class="w-14 h-14 rounded-2xl bg-red-500/20 border border-red-500/40 flex items-center justify-center text-red-400 text-2xl mb-2">
+          <i class="fa-solid fa-person-falling"></i>
+        </div>
+        <h3 class="font-display font-black text-2xl text-white tracking-wide">PUMPED OUT!</h3>
+        <p class="text-xs text-red-400 font-semibold mb-4">You peeled off the crux</p>
+
+        <!-- Stats Card -->
+        <div class="grid grid-cols-3 gap-2 w-full max-w-xs mb-4">
+          <div class="bg-slate-900 border border-slate-800 p-2.5 rounded-xl">
+            <span class="text-[9px] uppercase font-bold text-slate-400 block">Final Score</span>
+            <span id="finalScore" class="font-display font-black text-xl text-amber-400">0</span>
+          </div>
+          <div class="bg-slate-900 border border-slate-800 p-2.5 rounded-xl">
+            <span class="text-[9px] uppercase font-bold text-slate-400 block">Top Grade</span>
+            <span id="finalGrade" class="font-display font-black text-xl text-emerald-400">V0</span>
+          </div>
+          <div class="bg-slate-900 border border-slate-800 p-2.5 rounded-xl">
+            <span class="text-[9px] uppercase font-bold text-slate-400 block">Holds</span>
+            <span id="finalHolds" class="font-display font-black text-xl text-indigo-400">0</span>
+          </div>
+        </div>
+
+        <!-- Form for High Score & Email Collection -->
+        <form id="submissionForm" class="w-full max-w-xs space-y-2.5 bg-slate-900/90 border border-slate-800 p-3.5 rounded-xl text-left">
+          <div>
+            <label class="block text-[11px] font-semibold text-slate-300 mb-1">Climber Nickname *</label>
+            <input type="text" id="climberNameInput" required maxlength="18" placeholder="e.g. Alex Handhold" 
+                   class="w-full px-2.5 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-400">
+          </div>
+          <div>
+            <label class="block text-[11px] font-semibold text-slate-300 mb-1">Email Address *</label>
+            <input type="email" id="climberEmailInput" required placeholder="alex@boulder.com" 
+                   class="w-full px-2.5 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-400">
+            <p class="text-[9px] text-slate-400 mt-0.5">Top scorers get gym swag & leaderboard badge.</p>
+          </div>
+          <div>
+            <label class="block text-[11px] font-semibold text-slate-300 mb-1">Home Gym / City (Optional)</label>
+            <input type="text" id="climberGymInput" maxlength="25" placeholder="e.g. Movement Climbing, SF" 
+                   class="w-full px-2.5 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-400">
+          </div>
+
+          <button type="submit" id="submitScoreBtn" class="w-full py-2 bg-emerald-500 hover:bg-emerald-400 active:scale-95 text-slate-950 font-display font-black text-xs uppercase tracking-wider rounded-lg shadow-md transition flex items-center justify-center gap-1.5 mt-2">
+            <i class="fa-solid fa-paper-plane"></i>
+            <span>Submit to Leaderboard</span>
+          </button>
+        </form>
+
+        <!-- Feedback & Retry button -->
+        <div id="submitStatusMsg" class="hidden text-xs mt-2 font-medium"></div>
+
+        <button id="retryBtn" class="mt-3 text-xs text-slate-400 hover:text-white flex items-center gap-1.5 underline decoration-slate-600 underline-offset-4">
+          <i class="fa-solid fa-rotate-right"></i> Skip & Climb Again
+        </button>
+      </div>
+
+    </div>
+
+    <!-- Leaderboard View (Tab 2) -->
+    <div id="leaderboardView" class="hidden flex-1 bg-slate-950 flex flex-col overflow-hidden p-3">
+      <div class="flex items-center justify-between mb-2">
+        <h2 class="text-xs uppercase font-bold text-slate-400 tracking-wider">Top Wall Crushers</h2>
+        <span class="text-[10px] bg-slate-800 border border-slate-700 px-2 py-0.5 rounded-full text-amber-300" id="syncStatusTag">
+          Mock / Local Cache
+        </span>
+      </div>
+
+      <!-- Leaderboard Table Container -->
+      <div class="flex-1 overflow-y-auto rounded-xl border border-slate-800 bg-slate-900/60 divide-y divide-slate-800/60 text-xs">
+        <div class="grid grid-cols-12 px-3 py-2 bg-slate-950/70 font-semibold text-slate-400 text-[10px] uppercase">
+          <span class="col-span-2">Rank</span>
+          <span class="col-span-5">Climber</span>
+          <span class="col-span-2 text-center">Grade</span>
+          <span class="col-span-3 text-right">Score</span>
+        </div>
+        <div id="leaderboardList" class="divide-y divide-slate-800/40">
+          <!-- Populated by JS -->
+        </div>
+      </div>
+
+      <div class="mt-3 flex justify-between items-center text-[10px] text-slate-400">
+        <span>Resets weekly for new route setters</span>
+        <button id="backToWallBtn" class="text-amber-400 font-bold hover:underline">Back to Wall &rarr;</button>
+      </div>
+    </div>
+
+    <!-- Softr / Airtable Configuration Modal -->
+    <div id="guideModal" class="hidden fixed inset-0 bg-slate-950/85 backdrop-blur-md z-40 flex items-center justify-center p-3">
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-sm max-h-[85vh] flex flex-col overflow-hidden shadow-2xl">
+        <div class="p-3.5 border-b border-slate-800 flex items-center justify-between bg-slate-950">
+          <div class="flex items-center gap-2">
+            <i class="fa-solid fa-code text-amber-400 text-sm"></i>
+            <h3 class="font-display font-bold text-sm text-white">Softr & Airtable Setup</h3>
+          </div>
+          <button id="closeGuideBtn" class="text-slate-400 hover:text-white text-base">&times;</button>
+        </div>
+
+        <div class="p-4 overflow-y-auto space-y-4 text-xs text-slate-300 leading-relaxed">
+          <div class="bg-amber-500/10 border border-amber-500/30 p-2.5 rounded-xl">
+            <p class="text-amber-300 font-semibold text-[11px] mb-1">Direct Airtable Webhook Hookup:</p>
+            <p class="text-[10px] text-slate-300">
+              Paste your Make / Zapier or Airtable Automations Webhook URL below to automatically post climber email, handle, and high score straight into your Airtable Base!
+            </p>
+          </div>
+
+          <div>
+            <label class="block text-[11px] font-semibold text-slate-200 mb-1">Custom Webhook Endpoint URL</label>
+            <input type="url" id="webhookInput" placeholder="https://hook.us1.make.com/... or Zapier" 
+                   class="w-full px-2.5 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-400">
+            <button id="saveWebhookBtn" class="mt-2 w-full py-1.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold rounded-lg text-xs">
+              Save Webhook URL
+            </button>
+          </div>
+
+          <div class="space-y-2 border-t border-slate-800 pt-3 text-[11px]">
+            <h4 class="font-bold text-white uppercase text-[10px]">Airtable Base Recommended Fields:</h4>
+            <ul class="list-disc pl-4 space-y-1 text-slate-400">
+              <li><strong class="text-slate-200">Name</strong> (Single line text)</li>
+              <li><strong class="text-slate-200">Email</strong> (Email) - For winner prize notifications</li>
+              <li><strong class="text-slate-200">Score</strong> (Number)</li>
+              <li><strong class="text-slate-200">TopGrade</strong> (Single line text: V1 - V10)</li>
+              <li><strong class="text-slate-200">Gym</strong> (Single line text)</li>
+            </ul>
+          </div>
+
+          <div class="space-y-2 border-t border-slate-800 pt-3 text-[11px]">
+            <h4 class="font-bold text-white uppercase text-[10px]">Embedding into Softr:</h4>
+            <ol class="list-decimal pl-4 space-y-1.5 text-slate-400">
+              <li>Add a <strong class="text-slate-200">Custom Code</strong> block on your Softr page.</li>
+              <li>Copy and paste this single HTML file into the code block editor.</li>
+              <li>Set block height to minimum <code class="bg-slate-800 px-1 rounded text-amber-300">800px</code> or use full width.</li>
+            </ol>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- JavaScript Arcade Logic -->
+  <script>
+    /* =========================================================
+       CRUX: BOULDER DASH - ARCADE ENGINE WITH PUMP & CHALK
+       ========================================================= */
+
+    // Web Audio Synthesizer
+    class SoundFX {
+      constructor() {
+        this.ctx = null;
+        this.muted = false;
+      }
+      init() {
+        if (!this.ctx) {
+          const AudioContext = window.AudioContext || window.webkitAudioContext;
+          if (AudioContext) {
+            this.ctx = new AudioContext();
+          }
+        }
+      }
+      playChalk() {
+        if (this.muted || !this.ctx) return;
+        try {
+          const now = this.ctx.currentTime;
+          const bufferSize = this.ctx.sampleRate * 0.12;
+          const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+          const data = buffer.getChannelData(0);
+          for (let i = 0; i < bufferSize; i++) {
+            data[i] = Math.random() * 2 - 1;
+          }
+          const noise = this.ctx.createBufferSource();
+          noise.buffer = buffer;
+
+          const filter = this.ctx.createBiquadFilter();
+          filter.type = 'bandpass';
+          filter.frequency.setValueAtTime(1200, now);
+
+          const gain = this.ctx.createGain();
+          gain.gain.setValueAtTime(0.2, now);
+          gain.gain.exponentialRampToValueAtTime(0.01, now + 0.12);
+
+          noise.connect(filter);
+          filter.connect(gain);
+          gain.connect(this.ctx.destination);
+          noise.start(now);
+        } catch(e) {}
+      }
+      playSlip() {
+        if (this.muted || !this.ctx) return;
+        try {
+          const now = this.ctx.currentTime;
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.type = 'square';
+          osc.frequency.setValueAtTime(180, now);
+          osc.frequency.linearRampToValueAtTime(70, now + 0.15);
+          gain.gain.setValueAtTime(0.25, now);
+          gain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+          osc.start(now);
+          osc.stop(now + 0.15);
+        } catch(e) {}
+      }
+      playGrab(type = 'jug') {
+        if (this.muted || !this.ctx) return;
+        try {
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+
+          const now = this.ctx.currentTime;
+          let freq = 320;
+          if (type === 'crimp') freq = 480;
+          if (type === 'sloper') freq = 260;
+          if (type === 'dyno') freq = 680;
+
+          osc.frequency.setValueAtTime(freq, now);
+          osc.frequency.exponentialRampToValueAtTime(freq * 1.5, now + 0.08);
+
+          gain.gain.setValueAtTime(0.18, now);
+          gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+
+          osc.start(now);
+          osc.stop(now + 0.1);
+        } catch(e) {}
+      }
+      playFall() {
+        if (this.muted || !this.ctx) return;
+        try {
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+
+          const now = this.ctx.currentTime;
+          osc.type = 'sawtooth';
+          osc.frequency.setValueAtTime(300, now);
+          osc.frequency.exponentialRampToValueAtTime(60, now + 0.35);
+
+          gain.gain.setValueAtTime(0.25, now);
+          gain.gain.exponentialRampToValueAtTime(0.01, now + 0.35);
+
+          osc.start(now);
+          osc.stop(now + 0.35);
+        } catch(e) {}
+      }
+      playDynoSend() {
+        if (this.muted || !this.ctx) return;
+        try {
+          const now = this.ctx.currentTime;
+          [523.25, 659.25, 783.99, 1046.50].forEach((freq, i) => {
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            osc.frequency.setValueAtTime(freq, now + i * 0.05);
+            gain.gain.setValueAtTime(0.12, now + i * 0.05);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.05 + 0.15);
+            osc.start(now + i * 0.05);
+            osc.stop(now + i * 0.05 + 0.15);
+          });
+        } catch(e) {}
+      }
+      toggle() {
+        this.muted = !this.muted;
+        return this.muted;
+      }
+    }
+
+    const sound = new SoundFX();
+
+    // Game Elements and State
+    const canvas = document.getElementById('climbingCanvas');
+    const ctx = canvas.getContext('2d');
+    
+    // UI elements
+    const gradeBadge = document.getElementById('gradeBadge');
+    const scoreVal = document.getElementById('scoreVal');
+    const chalkFill = document.getElementById('chalkFill');
+    const chalkPercent = document.getElementById('chalkPercent');
+    const pumpFill = document.getElementById('pumpFill');
+    const pumpPercent = document.getElementById('pumpPercent');
+    const pumpWarning = document.getElementById('pumpWarning');
+    const comboBadge = document.getElementById('comboBadge');
+    const cruxAlert = document.getElementById('cruxAlert');
+    const restStatusTxt = document.getElementById('restStatusTxt');
+    const chalkCooldownBar = document.getElementById('chalkCooldownBar');
+    const chalkCooldownFill = document.getElementById('chalkCooldownFill');
+    const actionHint = document.getElementById('actionHint');
+    const startOverlay = document.getElementById('startOverlay');
+    const startGameBtn = document.getElementById('startGameBtn');
+    const gameOverModal = document.getElementById('gameOverModal');
+    const finalScoreEl = document.getElementById('finalScore');
+    const finalGradeEl = document.getElementById('finalGrade');
+    const finalHoldsEl = document.getElementById('finalHolds');
+    const submissionForm = document.getElementById('submissionForm');
+    const climberNameInput = document.getElementById('climberNameInput');
+    const climberEmailInput = document.getElementById('climberEmailInput');
+    const climberGymInput = document.getElementById('climberGymInput');
+    const submitStatusMsg = document.getElementById('submitStatusMsg');
+    const retryBtn = document.getElementById('retryBtn');
+    const chalkBtn = document.getElementById('chalkBtn');
+
+    // Tabs & Navigation
+    const tabWall = document.getElementById('tabWall');
+    const tabLeaderboard = document.getElementById('tabLeaderboard');
+    const gameView = document.getElementById('gameView');
+    const leaderboardView = document.getElementById('leaderboardView');
+    const leaderboardList = document.getElementById('leaderboardList');
+    const backToWallBtn = document.getElementById('backToWallBtn');
+
+    // Guide Modal
+    const guideBtn = document.getElementById('guideBtn');
+    const guideModal = document.getElementById('guideModal');
+    const closeGuideBtn = document.getElementById('closeGuideBtn');
+    const webhookInput = document.getElementById('webhookInput');
+    const saveWebhookBtn = document.getElementById('saveWebhookBtn');
+    const soundToggleBtn = document.getElementById('soundToggleBtn');
+    const soundIcon = document.getElementById('soundIcon');
+    const syncStatusTag = document.getElementById('syncStatusTag');
+
+    // Stored Webhook Config
+    let customWebhookUrl = localStorage.getItem('crux_airtable_webhook') || '';
+    if (customWebhookUrl) {
+      webhookInput.value = customWebhookUrl;
+      syncStatusTag.textContent = 'Custom Webhook Active';
+      syncStatusTag.className = 'text-[10px] bg-emerald-950 border border-emerald-700 px-2 py-0.5 rounded-full text-emerald-300';
+    }
+
+    // Default Seeded Mock Leaderboard
+    let leaderboardData = JSON.parse(localStorage.getItem('crux_leaderboard') || 'null');
+    if (!leaderboardData || leaderboardData.length === 0) {
+      leaderboardData = [
+        { name: "Janja G.", email: "janja@lead.si", grade: "V12", score: 3850, gym: "Ljubljana Climbing", date: "Just now" },
+        { name: "Tomoa N.", email: "tomoa@boulder.jp", grade: "V11", score: 3240, gym: "B-Pump Tokyo", date: "2 hrs ago" },
+        { name: "Adam O.", email: "adam@flatanger.cz", grade: "V10", score: 2690, gym: "Kotelna Brno", date: "1 day ago" },
+        { name: "Brooke R.", email: "brooke@climb.us", grade: "V8", score: 1820, gym: "ABC Boulder", date: "2 days ago" },
+        { name: "Sean B.", email: "sean@climb.com", grade: "V7", score: 1460, gym: "The Arch London", date: "3 days ago" },
+      ];
+      localStorage.setItem('crux_leaderboard', JSON.stringify(leaderboardData));
+    }
+
+    // Climber Game State
+    let isPlaying = false;
+    let score = 0;
+    let holdsTopped = 0;
+    let chalk = 100;
+    let pump = 0;
+    let streak = 0;
+    let cameraY = 0;
+    let targetCameraY = 0;
+    let screenShake = 0;
+    let chalkCooldown = 0;
+    const CHALK_COOLDOWN_MAX = 3.2; // seconds before can chalk again
+    let lastActionTime = 0;
+    let isCruxActive = false;
+    let slipFlashTimer = 0;
+
+    // Grades table extending up to V14
+    const GRADES = ["V0", "V1", "V2", "V3", "V4", "V5", "V6", "V7", "V8", "V9", "V10", "V11", "V12", "V13", "V14+"];
+
+    // Hold types definition
+    const HOLD_TYPES = [
+      { type: 'jug', color: '#10B981', points: 10, pumpCost: 3, chalkCost: 6, size: 28, shape: 'round', label: 'Jug' },
+      { type: 'crimp', color: '#FBBF24', points: 30, pumpCost: 14, chalkCost: 16, size: 18, shape: 'rect', label: 'Crimp' },
+      { type: 'sloper', color: '#A855F7', points: 45, pumpCost: 10, chalkCost: 22, size: 34, shape: 'dome', label: 'Sloper' },
+      { type: 'dyno', color: '#EF4444', points: 120, pumpCost: 18, chalkCost: 15, size: 28, shape: 'star', label: 'Dyno' }
+    ];
+
+    // Hold Objects & Particles
+    let holds = [];
+    let particles = [];
+    let climber = {
+      x: 0,
+      y: 0,
+      targetX: 0,
+      targetY: 0,
+      currentHoldIndex: 0,
+      isChalking: false,
+      chalkingTimer: 0,
+      isSlipping: false
+    };
+
+    // Canvas Resizing
+    function resizeCanvas() {
+      const rect = canvas.parentElement.getBoundingClientRect();
+      canvas.width = rect.width;
+      canvas.height = rect.height;
+    }
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    // Particle generator for chalk dust, slips, and sends
+    function createChalkDust(x, y, count = 10, color = 'rgba(255,255,255,0.85)') {
+      for (let i = 0; i < count; i++) {
+        particles.push({
+          x: x,
+          y: y,
+          vx: (Math.random() - 0.5) * 6,
+          vy: (Math.random() - 0.5) * 6 - 1.5,
+          size: Math.random() * 3.5 + 1.5,
+          alpha: 1,
+          color: color,
+          life: 0.02 + Math.random() * 0.03
+        });
+      }
+    }
+
+    // Procedural Hold Wall Generation with Forking Branches & Crux Sequences
+    function generateHolds() {
+      holds = [];
+      const wallWidth = canvas.width || 380;
+      // Start comfortably above the bottom dock & Softr badge area
+      const startY = (canvas.height || 600) - 160;
+      
+      // Starting initial jug
+      holds.push({
+        x: wallWidth / 2,
+        y: startY,
+        type: HOLD_TYPES[0],
+        id: 0,
+        topped: true,
+        side: 'center',
+        isCrux: false,
+        sizeScale: 1.0
+      });
+
+      let curY = startY;
+      for (let i = 1; i < 400; i++) {
+        const gradeIdx = Math.min(Math.floor(i / 10), GRADES.length - 1);
+        
+        // Spacing expands as grade increases
+        const verticalSpacing = 70 + Math.min(i * 0.25, 45) + Math.random() * 20;
+        curY -= verticalSpacing;
+        
+        // Every 12 holds is a 3-hold Crux section
+        const isCruxHold = (i % 12 >= 8 && i % 12 <= 10) || (gradeIdx >= 8 && i % 4 === 0);
+
+        // Branch holds alternately to left or right sides of the wall
+        // Extra left margin to avoid overlapping with any bottom-left floating badges
+        const side = (i % 2 === 1) ? 'left' : 'right';
+        const leftMargin = 60;
+        const rightMargin = 45;
+        let xPos;
+        if (side === 'left') {
+          xPos = leftMargin + Math.random() * (wallWidth * 0.36 - leftMargin);
+        } else {
+          xPos = (wallWidth * 0.62) + Math.random() * (wallWidth * 0.38 - rightMargin);
+        }
+
+        // Harder hold distributions as difficulty climbs
+        let typeIndex = 0;
+        const r = Math.random();
+        if (isCruxHold) {
+          typeIndex = r < 0.55 ? 1 : (r < 0.85 ? 3 : 2); // Mostly crimps and dynos
+        } else if (gradeIdx < 2) {
+          typeIndex = r < 0.65 ? 0 : 1; // V0-V2 lots of jugs
+        } else if (gradeIdx < 5) {
+          if (r < 0.35) typeIndex = 0;
+          else if (r < 0.70) typeIndex = 1;
+          else typeIndex = 2;
+        } else if (gradeIdx < 8) {
+          if (r < 0.15) typeIndex = 0;
+          else if (r < 0.55) typeIndex = 1;
+          else if (r < 0.80) typeIndex = 2;
+          else typeIndex = 3;
+        } else {
+          // V9+ almost no jugs, micro crimps and slopers
+          if (r < 0.05) typeIndex = 0;
+          else if (r < 0.50) typeIndex = 1;
+          else if (r < 0.80) typeIndex = 2;
+          else typeIndex = 3;
+        }
+
+        // Escalating hold size shrinkage (micro holds)
+        const sizeScale = Math.max(0.65, 1.0 - (gradeIdx * 0.035));
+
+        holds.push({
+          x: xPos,
+          y: curY,
+          type: HOLD_TYPES[typeIndex],
+          id: i,
+          topped: false,
+          side: side,
+          isCrux: isCruxHold,
+          sizeScale: sizeScale
+        });
+      }
+
+      // Reset climber pos
+      climber.x = holds[0].x;
+      climber.y = holds[0].y;
+      climber.targetX = holds[0].x;
+      climber.targetY = holds[0].y;
+      climber.currentHoldIndex = 0;
+      climber.isChalking = false;
+      climber.chalkingTimer = 0;
+      climber.isSlipping = false;
+      cameraY = 0;
+      targetCameraY = 0;
+    }
+
+    function getCurrentGrade() {
+      const idx = Math.min(Math.floor(holdsTopped / 8), GRADES.length - 1);
+      return GRADES[idx];
+    }
+
+    // Start / Reset Game
+    function startGame() {
+      sound.init();
+      resizeCanvas();
+      generateHolds();
+      score = 0;
+      holdsTopped = 0;
+      chalk = 100;
+      pump = 0;
+      streak = 0;
+      screenShake = 0;
+      chalkCooldown = 0;
+      lastActionTime = performance.now();
+      isCruxActive = false;
+      slipFlashTimer = 0;
+      isPlaying = true;
+
+      startOverlay.classList.add('hidden');
+      gameOverModal.classList.add('hidden');
+      gameOverModal.classList.remove('flex');
+      cruxAlert.classList.add('hidden');
+
+      gradeBadge.textContent = 'V0';
+      scoreVal.textContent = '0';
+      comboBadge.classList.add('opacity-0');
+      updateMetersUI();
+      updateActionHint();
+    }
+
+    function updateActionHint() {
+      const nextHold = holds[climber.currentHoldIndex + 1];
+      if (!nextHold) return;
+      if (nextHold.isCrux) {
+        actionHint.textContent = `CRUX HOLD (${nextHold.type.label})! Tap accurately!`;
+        actionHint.className = 'pointer-events-auto flex-1 bg-red-950/95 border border-red-700/80 backdrop-blur py-2 px-3 rounded-xl text-[11px] font-black tracking-wide text-red-200 shadow-lg truncate animate-pulse';
+      } else {
+        actionHint.textContent = `Tap ${nextHold.type.label} on wall [${nextHold.side.toUpperCase()}]`;
+        actionHint.className = 'pointer-events-auto flex-1 bg-slate-900/95 border border-slate-700/80 backdrop-blur py-2 px-3 rounded-xl text-[11px] font-bold tracking-wide text-amber-300 shadow-lg truncate';
+      }
+    }
+
+    // Punish player for spam or bad reach
+    function triggerSlipPenalty(reason = "Bad Footwork!") {
+      sound.playSlip();
+      climber.isSlipping = true;
+      slipFlashTimer = 0.35;
+      screenShake = 16;
+      streak = 0;
+      comboBadge.classList.add('opacity-0');
+
+      // Spike forearm pump significantly
+      pump = Math.min(100, pump + 24);
+
+      // Chalk loss on slip
+      chalk = Math.max(0, chalk - 15);
+
+      // Warning particle flash
+      createChalkDust(climber.x, climber.y, 22, '#EF4444');
+
+      actionHint.textContent = `SLIP! ${reason} (+24% Pump)`;
+      actionHint.className = 'bg-red-600 border border-red-300 text-center py-1 px-2 rounded-lg text-[10px] font-black tracking-wide text-white shadow';
+
+      updateMetersUI();
+    }
+
+    // Chalk Up and Shakeout with Strict Anti-Spam & Hold Type Context
+    function chalkUp() {
+      if (!isPlaying || climber.isChalking) return;
+
+      const now = performance.now();
+      // Enforce cooldown to prevent spamming
+      if (chalkCooldown > 0) {
+        triggerSlipPenalty("Spamming Chalk! Loss of grip!");
+        return;
+      }
+
+      const currentHold = holds[climber.currentHoldIndex];
+      const isJug = currentHold && currentHold.type.type === 'jug';
+
+      // Chalking while hanging on crimps or slopers takes huge grip strength!
+      if (!isJug) {
+        // Punish player if trying to chalk up on tiny crimps/slopers
+        const holdPenalty = currentHold.type.type === 'crimp' ? 18 : 12;
+        pump = Math.min(100, pump + holdPenalty);
+        actionHint.textContent = `Cannot rest on ${currentHold.type.label}! Pump increased!`;
+        actionHint.className = 'bg-amber-600 border border-amber-300 text-center py-1 px-2 rounded-lg text-[10px] font-bold tracking-wide text-white shadow';
+        sound.playSlip();
+      } else {
+        // Jug allows legitimate rest and pump reduction
+        pump = Math.max(0, pump - 22);
+        actionHint.textContent = `Chalked up on Jug! Forearm rested.`;
+        actionHint.className = 'bg-emerald-900 border border-emerald-500 text-center py-1 px-2 rounded-lg text-[10px] font-bold tracking-wide text-emerald-200 shadow';
+      }
+
+      sound.playChalk();
+      climber.isChalking = true;
+      climber.chalkingTimer = 0.45;
+      chalk = 100;
+      chalkCooldown = CHALK_COOLDOWN_MAX;
+
+      createChalkDust(climber.x, climber.y + 20, 24, '#FFFFFF');
+      updateMetersUI();
+    }
+
+    // Direct Tap on Canvas Hold Targeting (Mobile-First)
+    function handleCanvasClick(e) {
+      if (!isPlaying) return;
+
+      const rect = canvas.getBoundingClientRect();
+      const clickX = e.clientX - rect.left;
+      const clickY = e.clientY - rect.top;
+
+      // Softr Badge Safe Zone guard: bottom-left 145px width x 85px height
+      // Ignore clicks here so accidental touches don't penalize or misclick
+      if (clickX <= 145 && clickY >= rect.height - 85) {
+        return;
+      }
+
+      const nextHold = holds[climber.currentHoldIndex + 1];
+      if (!nextHold) return;
+
+      // Transform target hold world coordinates to screen
+      const screenHoldX = nextHold.x;
+      const screenHoldY = nextHold.y + cameraY;
+      // Generous touch target for mobile thumb ergonomics
+      const hitRadius = Math.max(48, nextHold.type.size * nextHold.sizeScale * 1.8);
+
+      const dx = clickX - screenHoldX;
+      const dy = clickY - screenHoldY;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+
+      if (dist <= hitRadius) {
+        sendHold(nextHold, climber.currentHoldIndex + 1);
+      } else {
+        // Tapped empty wall or wrong hold -> immediate slip penalty!
+        triggerSlipPenalty("Missed Hold!");
+      }
+    }
+
+    // Successful hold progression logic
+    function sendHold(targetHold, nextIndex) {
+      const holdType = targetHold.type;
+      const gradeLevel = Math.min(Math.floor(holdsTopped / 8), GRADES.length - 1);
+
+      // Low chalk makes holds much harder to hold
+      const chalkMultiplier = chalk <= 15 ? 2.6 : (chalk <= 40 ? 1.5 : 1.0);
+      
+      // Grade escalation multiplier on pump consumption
+      const gradeMultiplier = 1.0 + (gradeLevel * 0.12);
+      pump = Math.min(100, pump + (holdType.pumpCost * chalkMultiplier * gradeMultiplier));
+
+      // Deplete chalk
+      chalk = Math.max(0, chalk - holdType.chalkCost);
+
+      // Audio & Particle FX
+      if (holdType.type === 'dyno') {
+        sound.playDynoSend();
+        screenShake = 14;
+        createChalkDust(targetHold.x, targetHold.y, 25, 'rgba(239, 68, 68, 0.9)');
+      } else {
+        sound.playGrab(holdType.type);
+        screenShake = 4;
+        createChalkDust(targetHold.x, targetHold.y, 14, holdType.color);
+      }
+
+      // Points & Combo calculations
+      holdsTopped++;
+      streak++;
+      const comboMult = 1 + Math.min(streak * 0.15, 2.5);
+      const chalkScoreFactor = chalk < 25 ? 0.6 : 1.0;
+      const earnedPoints = Math.round(holdType.points * comboMult * chalkScoreFactor * (1 + gradeLevel * 0.2));
+      score += earnedPoints;
+
+      // Climber movement update
+      climber.currentHoldIndex = nextIndex;
+      climber.targetX = targetHold.x;
+      climber.targetY = targetHold.y;
+      targetHold.topped = true;
+
+      // Camera smooth scroll
+      targetCameraY = -targetHold.y + (canvas.height * 0.65);
+
+      // Check for Crux Section alert
+      isCruxActive = targetHold.isCrux;
+      if (isCruxActive) {
+        cruxAlert.classList.remove('hidden');
+      } else {
+        cruxAlert.classList.add('hidden');
+      }
+
+      // UI updates
+      scoreVal.textContent = score;
+      gradeBadge.textContent = getCurrentGrade();
+      if (streak > 2) {
+        comboBadge.textContent = `${streak}x Flash! (+${earnedPoints})`;
+        comboBadge.classList.remove('opacity-0');
+      } else {
+        comboBadge.classList.add('opacity-0');
+      }
+
+      updateMetersUI();
+      updateActionHint();
+    }
+
+    // Update both Pump and Chalk Gauges
+    function updateMetersUI() {
+      // 1. Chalk Meter
+      const chalkVal = Math.max(0, Math.min(100, Math.round(chalk)));
+      chalkPercent.textContent = `${chalkVal}%`;
+      chalkFill.style.width = `${chalkVal}%`;
+
+      if (chalkVal < 25) {
+        chalkFill.className = 'bg-red-500 h-full transition-all duration-75';
+        chalkPercent.className = 'text-red-400 font-mono font-bold animate-pulse';
+      } else if (chalkVal < 50) {
+        chalkFill.className = 'bg-amber-400 h-full transition-all duration-75';
+        chalkPercent.className = 'text-amber-300 font-mono';
+      } else {
+        chalkFill.className = 'bg-cyan-400 h-full transition-all duration-75';
+        chalkPercent.className = 'text-cyan-400 font-mono';
+      }
+
+      // Chalk cooldown bar
+      if (chalkCooldown > 0) {
+        chalkCooldownBar.classList.remove('hidden');
+        const pct = (chalkCooldown / CHALK_COOLDOWN_MAX) * 100;
+        chalkCooldownFill.style.width = `${pct}%`;
+      } else {
+        chalkCooldownBar.classList.add('hidden');
+      }
+
+      // Current hold rest text indicator
+      const curHold = holds[climber.currentHoldIndex];
+      if (curHold && curHold.type.type === 'jug') {
+        restStatusTxt.textContent = "On Jug: Rest & Chalk OK";
+        restStatusTxt.className = "text-emerald-400 font-bold";
+      } else {
+        restStatusTxt.textContent = "Crimps/Slopers: Chalking pumps out!";
+        restStatusTxt.className = "text-red-400 font-semibold";
+      }
+
+      // 2. Forearm Pump Meter
+      const pumpVal = Math.max(0, Math.min(100, Math.round(pump)));
+      pumpPercent.textContent = `${pumpVal}%`;
+      pumpFill.style.width = `${pumpVal}%`;
+
+      if (pumpVal > 75) {
+        pumpPercent.className = 'text-red-500 font-mono font-bold';
+        pumpWarning.classList.remove('hidden');
+      } else if (pumpVal > 50) {
+        pumpPercent.className = 'text-amber-400 font-mono font-bold';
+        pumpWarning.classList.add('hidden');
+      } else {
+        pumpPercent.className = 'text-emerald-400 font-mono';
+        pumpWarning.classList.add('hidden');
+      }
+
+      // Fall if pump hits 100%
+      if (pump >= 100) {
+        endGame();
+      }
+    }
+
+    // Game Over Handler
+    function endGame() {
+      isPlaying = false;
+      sound.playFall();
+
+      finalScoreEl.textContent = score;
+      finalGradeEl.textContent = getCurrentGrade();
+      finalHoldsEl.textContent = holdsTopped;
+
+      gameOverModal.classList.remove('hidden');
+      gameOverModal.classList.add('flex');
+    }
+
+    // Submission to Airtable Webhook & Local Storage
+    submissionForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const name = climberNameInput.value.trim();
+      const email = climberEmailInput.value.trim();
+      const gym = climberGymInput.value.trim() || 'Independent';
+
+      if (!name || !email) return;
+
+      const submitBtn = document.getElementById('submitScoreBtn');
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Saving to Airtable...`;
+
+      const scoreEntry = {
+        name,
+        email,
+        score,
+        grade: getCurrentGrade(),
+        gym,
+        date: 'Just now',
+        timestamp: new Date().toISOString()
+      };
+
+      // 1. Post to Webhook (if provided)
+      let syncedToAirtable = false;
+      if (customWebhookUrl) {
+        try {
+          await fetch(customWebhookUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(scoreEntry),
+            mode: 'no-cors'
+          });
+          syncedToAirtable = true;
+        } catch (err) {
+          console.warn("Airtable Webhook send error:", err);
+        }
+      }
+
+      // 2. Always store locally in Leaderboard
+      leaderboardData.push(scoreEntry);
+      leaderboardData.sort((a, b) => b.score - a.score);
+      leaderboardData = leaderboardData.slice(0, 50);
+      localStorage.setItem('crux_leaderboard', JSON.stringify(leaderboardData));
+
+      // 3. Status feedback
+      submitStatusMsg.classList.remove('hidden');
+      if (syncedToAirtable) {
+        submitStatusMsg.className = 'text-xs mt-2 font-medium text-emerald-400';
+        submitStatusMsg.innerHTML = `<i class="fa-solid fa-check"></i> Recorded to Airtable & Leaderboard!`;
+      } else {
+        submitStatusMsg.className = 'text-xs mt-2 font-medium text-amber-300';
+        submitStatusMsg.innerHTML = `<i class="fa-solid fa-circle-check"></i> Score saved to local leaderboard!`;
+      }
+
+      setTimeout(() => {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = `<i class="fa-solid fa-paper-plane"></i> Submit to Leaderboard`;
+        switchTab('leaderboard');
+      }, 900);
+    });
+
+    // Populate Leaderboard DOM
+    function renderLeaderboard() {
+      leaderboardList.innerHTML = '';
+      leaderboardData.forEach((entry, i) => {
+        const rank = i + 1;
+        let rankBadge = `<span class="font-bold text-slate-400">#${rank}</span>`;
+        if (rank === 1) rankBadge = `<i class="fa-solid fa-crown text-amber-400 text-sm"></i>`;
+        if (rank === 2) rankBadge = `<span class="w-5 h-5 rounded-full bg-slate-300 text-slate-950 inline-flex items-center justify-center font-black text-[10px]">2</span>`;
+        if (rank === 3) rankBadge = `<span class="w-5 h-5 rounded-full bg-amber-700 text-amber-100 inline-flex items-center justify-center font-black text-[10px]">3</span>`;
+
+        const row = document.createElement('div');
+        row.className = 'grid grid-cols-12 px-3 py-2.5 items-center hover:bg-slate-800/40 transition';
+        row.innerHTML = `
+          <div class="col-span-2 flex items-center">${rankBadge}</div>
+          <div class="col-span-5 truncate pr-1">
+            <span class="font-bold text-white block truncate">${escapeHtml(entry.name)}</span>
+            <span class="text-[9px] text-slate-400 truncate block">${escapeHtml(entry.gym || 'Climber')}</span>
+          </div>
+          <div class="col-span-2 text-center">
+            <span class="px-1.5 py-0.5 rounded bg-slate-800 font-mono font-bold text-[10px] text-amber-400 border border-slate-700">${entry.grade}</span>
+          </div>
+          <div class="col-span-3 text-right">
+            <span class="font-display font-black text-white text-xs">${entry.score.toLocaleString()}</span>
+          </div>
+        `;
+        leaderboardList.appendChild(row);
+      });
+    }
+
+    function escapeHtml(text) {
+      if (!text) return '';
+      return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    }
+
+    // Tab Switching
+    function switchTab(target) {
+      if (target === 'wall') {
+        tabWall.className = 'py-1.5 rounded-lg bg-amber-500 text-slate-950 font-bold transition flex items-center justify-center gap-1.5 shadow-sm';
+        tabLeaderboard.className = 'py-1.5 rounded-lg text-slate-400 hover:text-white transition flex items-center justify-center gap-1.5';
+        gameView.classList.remove('hidden');
+        leaderboardView.classList.add('hidden');
+      } else {
+        renderLeaderboard();
+        tabLeaderboard.className = 'py-1.5 rounded-lg bg-amber-500 text-slate-950 font-bold transition flex items-center justify-center gap-1.5 shadow-sm';
+        tabWall.className = 'py-1.5 rounded-lg text-slate-400 hover:text-white transition flex items-center justify-center gap-1.5';
+        gameView.classList.add('hidden');
+        leaderboardView.classList.remove('hidden');
+      }
+    }
+
+    tabWall.addEventListener('click', () => switchTab('wall'));
+    tabLeaderboard.addEventListener('click', () => switchTab('leaderboard'));
+    backToWallBtn.addEventListener('click', () => switchTab('wall'));
+
+    // Webhook Configuration Drawer
+    guideBtn.addEventListener('click', () => guideModal.classList.remove('hidden'));
+    closeGuideBtn.addEventListener('click', () => guideModal.classList.add('hidden'));
+    saveWebhookBtn.addEventListener('click', () => {
+      customWebhookUrl = webhookInput.value.trim();
+      localStorage.setItem('crux_airtable_webhook', customWebhookUrl);
+      if (customWebhookUrl) {
+        syncStatusTag.textContent = 'Custom Webhook Active';
+        syncStatusTag.className = 'text-[10px] bg-emerald-950 border border-emerald-700 px-2 py-0.5 rounded-full text-emerald-300';
+      } else {
+        syncStatusTag.textContent = 'Mock / Local Cache';
+        syncStatusTag.className = 'text-[10px] bg-slate-800 border border-slate-700 px-2 py-0.5 rounded-full text-amber-300';
+      }
+      guideModal.classList.add('hidden');
+    });
+
+    // Sound toggle
+    soundToggleBtn.addEventListener('click', () => {
+      const isMuted = sound.toggle();
+      if (isMuted) {
+        soundIcon.className = 'fa-solid fa-volume-xmark text-xs text-red-400';
+      } else {
+        soundIcon.className = 'fa-solid fa-volume-high text-xs text-slate-300';
+      }
+    });
+
+    // Controls
+    startGameBtn.addEventListener('click', startGame);
+    retryBtn.addEventListener('click', startGame);
+    chalkBtn.addEventListener('click', chalkUp);
+    canvas.addEventListener('pointerdown', handleCanvasClick);
+
+    // Keyboard support: Space/C to chalk up or start
+    window.addEventListener('keydown', (e) => {
+      if (!isPlaying && !startOverlay.classList.contains('hidden')) {
+        if (['Space', 'Enter'].includes(e.code)) {
+          startGame();
+        }
+        return;
+      }
+      
+      if (isPlaying && ['KeyC', 'Space'].includes(e.code)) {
+        e.preventDefault();
+        chalkUp();
+      }
+    });
+
+    // --- RENDER LOOP & SIMULATION ---
+    let lastTime = performance.now();
+
+    function renderLoop(time) {
+      const dt = Math.min((time - lastTime) / 1000, 0.1);
+      lastTime = time;
+
+      if (isPlaying) {
+        const gradeLevel = Math.min(Math.floor(holdsTopped / 8), GRADES.length - 1);
+        const currentHold = holds[climber.currentHoldIndex];
+        const isRestJug = currentHold && currentHold.type.type === 'jug';
+        
+        // Passive pump increases with wall angle & grade
+        let basePumpRate = isRestJug ? 1.5 : (4.5 + gradeLevel * 0.9);
+        if (isCruxActive) basePumpRate += 5.0; // Extreme drain in crux
+        if (chalk <= 15) basePumpRate += 7.5; // Slippery sweaty hands
+
+        pump = Math.min(100, pump + (basePumpRate * dt));
+
+        // Chalk wears off continuously; faster on crimps/slopers
+        const chalkWearRate = (currentHold && currentHold.type.type === 'sloper') ? 6.0 : 3.5;
+        chalk = Math.max(0, chalk - (chalkWearRate * dt));
+
+        // Cooldown timer decay
+        if (chalkCooldown > 0) {
+          chalkCooldown = Math.max(0, chalkCooldown - dt);
+        }
+
+        // Chalking animation timer
+        if (climber.isChalking) {
+          climber.chalkingTimer -= dt;
+          if (climber.chalkingTimer <= 0) {
+            climber.isChalking = false;
+          }
+        }
+
+        // Slip timer decay
+        if (slipFlashTimer > 0) {
+          slipFlashTimer -= dt;
+          if (slipFlashTimer <= 0) climber.isSlipping = false;
+        }
+
+        updateMetersUI();
+      }
+
+      // Camera interpolation
+      cameraY += (targetCameraY - cameraY) * 0.12;
+
+      // Screen shake dampening
+      let shakeOffsetX = 0;
+      let shakeOffsetY = 0;
+      if (screenShake > 0) {
+        shakeOffsetX = (Math.random() - 0.5) * screenShake;
+        shakeOffsetY = (Math.random() - 0.5) * screenShake;
+        screenShake *= 0.86;
+        if (screenShake < 0.2) screenShake = 0;
+      }
+
+      // Climber position interpolation
+      climber.x += (climber.targetX - climber.x) * 0.22;
+      climber.y += (climber.targetY - climber.y) * 0.22;
+
+      // Clear Canvas
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.save();
+      ctx.translate(shakeOffsetX, cameraY + shakeOffsetY);
+
+      // Draw climbing wall texture
+      drawWallBackground();
+
+      // Draw Holds
+      drawHolds();
+
+      // Draw Climber Avatar
+      drawClimber();
+
+      // Draw Chalk Dust Particles
+      drawParticles(dt);
+
+      ctx.restore();
+
+      requestAnimationFrame(renderLoop);
+    }
+
+    // Climbing gym textured wall background
+    function drawWallBackground() {
+      const w = canvas.width;
+      const panelHeight = 220;
+      const startGridY = Math.floor((-cameraY) / panelHeight) * panelHeight - panelHeight;
+      const endGridY = startGridY + canvas.height + panelHeight * 2;
+
+      ctx.strokeStyle = '#1e293b';
+      ctx.lineWidth = 1.5;
+
+      for (let y = startGridY; y < endGridY; y += panelHeight) {
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(w, y);
+        ctx.stroke();
+
+        ctx.fillStyle = '#334155';
+        for (let bx = 30; bx < w; bx += 55) {
+          ctx.beginPath();
+          ctx.arc(bx, y + 45, 2.5, 0, Math.PI * 2);
+          ctx.arc(bx + 25, y + 130, 2.5, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+    }
+
+    // Render holds with distinct climbing geometry and side indicators
+    function drawHolds() {
+      const nextHold = holds[climber.currentHoldIndex + 1];
+
+      holds.forEach((hold) => {
+        if (hold.y + cameraY < -100 || hold.y + cameraY > canvas.height + 100) return;
+
+        ctx.save();
+        ctx.translate(hold.x, hold.y);
+
+        const currentScale = hold.sizeScale || 1.0;
+        const currentSize = hold.type.size * currentScale;
+
+        // Visual target pulse on the next active hold
+        if (nextHold && hold.id === nextHold.id) {
+          const pulse = Math.sin(Date.now() * 0.008) * 4;
+          ctx.beginPath();
+          ctx.arc(0, 0, currentSize + 10 + pulse, 0, Math.PI * 2);
+          ctx.strokeStyle = hold.isCrux ? '#EF4444' : 'rgba(251, 191, 36, 0.85)';
+          ctx.lineWidth = 3;
+          ctx.setLineDash([4, 4]);
+          ctx.stroke();
+          ctx.setLineDash([]);
+
+          // Side indicator arrow on hold
+          ctx.fillStyle = '#FFFFFF';
+          ctx.font = 'bold 10px sans-serif';
+          ctx.textAlign = 'center';
+          ctx.fillText(hold.side === 'left' ? '◀ L' : 'R ▶', 0, -currentSize - 6);
+        }
+
+        ctx.fillStyle = hold.type.color;
+        ctx.shadowColor = hold.isCrux ? '#EF4444' : hold.type.color;
+        ctx.shadowBlur = hold.id === (nextHold?.id) ? 14 : 4;
+
+        if (hold.type.shape === 'round') {
+          ctx.beginPath();
+          ctx.arc(0, 0, currentSize / 2, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = 'rgba(0,0,0,0.3)';
+          ctx.beginPath();
+          ctx.arc(2, 2, currentSize / 3.5, 0, Math.PI);
+          ctx.fill();
+        } else if (hold.type.shape === 'rect') {
+          const rw = currentSize * 1.5;
+          const rh = currentSize * 0.6;
+          ctx.beginPath();
+          ctx.roundRect(-rw/2, -rh/2, rw, rh, 3);
+          ctx.fill();
+          ctx.fillStyle = 'rgba(255,255,255,0.4)';
+          ctx.fillRect(-rw/2, -rh/2, rw, 2.5);
+        } else if (hold.type.shape === 'dome') {
+          ctx.beginPath();
+          ctx.ellipse(0, 0, currentSize * 0.8, currentSize * 0.5, 0, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = 'rgba(255,255,255,0.2)';
+          ctx.beginPath();
+          ctx.arc(-3, -3, currentSize * 0.25, 0, Math.PI * 2);
+          ctx.fill();
+        } else if (hold.type.shape === 'star') {
+          ctx.beginPath();
+          const s = currentSize * 0.8;
+          ctx.moveTo(0, -s);
+          ctx.lineTo(s, 0);
+          ctx.lineTo(0, s);
+          ctx.lineTo(-s, 0);
+          ctx.closePath();
+          ctx.fill();
+
+          ctx.fillStyle = '#FFFFFF';
+          ctx.beginPath();
+          ctx.arc(0, 0, 3, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        // Bolt hole
+        ctx.fillStyle = '#0f172a';
+        ctx.shadowBlur = 0;
+        ctx.beginPath();
+        ctx.arc(0, 0, 2.5, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.restore();
+      });
+    }
+
+    // Render modern climber avatar with animated chalking arm & slip feedback
+    function drawClimber() {
+      ctx.save();
+      ctx.translate(climber.x, climber.y);
+
+      // Slip flash red outline
+      if (climber.isSlipping) {
+        ctx.strokeStyle = '#EF4444';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(0, 10, 32, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+
+      // Chalk bag on back
+      ctx.fillStyle = '#f59e0b';
+      ctx.beginPath();
+      ctx.arc(0, 24, 7, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(-4, 20, 8, 2);
+
+      // Climber body
+      ctx.strokeStyle = climber.isSlipping ? '#EF4444' : '#38bdf8';
+      ctx.lineWidth = 14;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(0, 16);
+      ctx.lineTo(0, 2);
+      ctx.stroke();
+
+      // Arms
+      ctx.strokeStyle = '#fdba74';
+      ctx.lineWidth = 4.5;
+      
+      // Left arm
+      ctx.beginPath();
+      ctx.moveTo(-4, 6);
+      ctx.quadraticCurveTo(-14, -6, 0, -4);
+      ctx.stroke();
+
+      // Right arm
+      ctx.beginPath();
+      ctx.moveTo(4, 6);
+      if (climber.isChalking) {
+        // Hand reaches into chalk bag behind back
+        ctx.quadraticCurveTo(12, 14, 2, 22);
+      } else {
+        ctx.quadraticCurveTo(14, -6, 0, -4);
+      }
+      ctx.stroke();
+
+      // Head
+      ctx.fillStyle = '#fdba74';
+      ctx.beginPath();
+      ctx.arc(0, -10, 8, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Beanie
+      ctx.fillStyle = '#ef4444';
+      ctx.beginPath();
+      ctx.arc(0, -12, 8, Math.PI, Math.PI * 2);
+      ctx.fill();
+
+      // Legs
+      ctx.strokeStyle = '#1e293b';
+      ctx.lineWidth = 5;
+      ctx.beginPath();
+      ctx.moveTo(-3, 16);
+      ctx.lineTo(-12, 34);
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.moveTo(3, 16);
+      ctx.lineTo(10, 36);
+      ctx.stroke();
+
+      // Shoes
+      ctx.fillStyle = '#eab308';
+      ctx.beginPath();
+      ctx.roundRect(-16, 32, 10, 5, 2);
+      ctx.roundRect(7, 34, 10, 5, 2);
+      ctx.fill();
+
+      ctx.restore();
+    }
+
+    // Particle simulation
+    function drawParticles(dt) {
+      for (let i = particles.length - 1; i >= 0; i--) {
+        const p = particles[i];
+        p.x += p.vx;
+        p.y += p.vy;
+        p.alpha -= p.life;
+
+        if (p.alpha <= 0) {
+          particles.splice(i, 1);
+          continue;
+        }
+
+        ctx.save();
+        ctx.globalAlpha = p.alpha;
+        ctx.fillStyle = p.color;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+    }
+
+    // Start on load
+    window.onload = function() {
+      resizeCanvas();
+      generateHolds();
+      renderLeaderboard();
+      requestAnimationFrame(renderLoop);
+    };
+  </script>
+</body>
+</html>
