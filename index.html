@@ -366,6 +366,13 @@
        CRUX: BOULDER DASH - REAL-TIME CLIMBING SIMULATION ENGINE
        ========================================================= */
 
+    // Wrapper Mask Messenger Helper
+    function setParentMask(show) {
+      try {
+        window.top.postMessage(show ? 'show-badge-mask' : 'hide-badge-mask', '*');
+      } catch (e) {}
+    }
+
     // Procedural Web Audio Synthesizer
     class SoundFX {
       constructor() {
@@ -724,10 +731,8 @@
       slipFlashTimer = 0;
       isPlaying = true;
 
-      // Notify parent BldrHub PWA wrapper to hide the bottom white badge mask
-      try {
-        window.top.postMessage('hide-badge-mask', '*');
-      } catch (e) {}
+      // Notify parent BldrHub wrapper to hide the bottom white badge mask
+      setParentMask(false);
 
       startOverlay.classList.add('hidden');
       gameOverModal.classList.add('hidden');
@@ -944,6 +949,9 @@
       isPlaying = false;
       sound.playFall();
 
+      // Restore white badge mask on pump out
+      setParentMask(true);
+
       finalScoreEl.textContent = score;
       finalGradeEl.textContent = getCurrentGrade();
       finalHoldsEl.textContent = holdsTopped;
@@ -1051,12 +1059,14 @@
         tabLeaderboard.className = 'py-1.5 rounded-lg text-slate-400 hover:text-white transition flex items-center justify-center gap-1.5';
         gameView.classList.remove('hidden');
         leaderboardView.classList.add('hidden');
+        if (!isPlaying) setParentMask(true);
       } else {
         renderLeaderboard();
         tabLeaderboard.className = 'py-1.5 rounded-lg bg-amber-500 text-slate-950 font-bold transition flex items-center justify-center gap-1.5 shadow-sm';
         tabWall.className = 'py-1.5 rounded-lg text-slate-400 hover:text-white transition flex items-center justify-center gap-1.5';
         gameView.classList.add('hidden');
         leaderboardView.classList.remove('hidden');
+        setParentMask(true);
       }
     }
 
@@ -1064,14 +1074,21 @@
     tabLeaderboard.addEventListener('click', () => switchTab('leaderboard'));
     backToWallBtn.addEventListener('click', () => switchTab('wall'));
 
-    guideBtn.addEventListener('click', () => guideModal.classList.remove('hidden'));
-    closeGuideBtn.addEventListener('click', () => guideModal.classList.add('hidden'));
+    guideBtn.addEventListener('click', () => {
+      guideModal.classList.remove('hidden');
+      setParentMask(true);
+    });
+    closeGuideBtn.addEventListener('click', () => {
+      guideModal.classList.add('hidden');
+      if (isPlaying) setParentMask(false);
+    });
     saveWebhookBtn.addEventListener('click', () => {
       customWebhookUrl = webhookInput.value.trim() || DEFAULT_WEBHOOK_URL;
       localStorage.setItem('crux_airtable_webhook', customWebhookUrl);
       syncStatusTag.textContent = 'Webhook Active';
       syncStatusTag.className = 'text-[10px] bg-emerald-950 border border-emerald-700 px-2 py-0.5 rounded-full text-emerald-300';
       guideModal.classList.add('hidden');
+      if (isPlaying) setParentMask(false);
     });
 
     soundToggleBtn.addEventListener('click', () => {
@@ -1101,6 +1118,13 @@
         e.preventDefault();
         chalkUp();
       }
+    });
+
+    // Lifecycle guards: Always restore mask if navigating away, unloaded, or hidden
+    window.addEventListener('pagehide', () => setParentMask(true));
+    window.addEventListener('beforeunload', () => setParentMask(true));
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) setParentMask(true);
     });
 
     // Main Engine Simulation Loop
@@ -1388,6 +1412,8 @@
 
     // Initialize application
     window.onload = function() {
+      // Ensure badge mask is visible on launch
+      setParentMask(true);
       resizeCanvas();
       generateHolds();
       renderLeaderboard();
