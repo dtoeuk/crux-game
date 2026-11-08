@@ -366,10 +366,16 @@
        CRUX: BOULDER DASH - REAL-TIME CLIMBING SIMULATION ENGINE
        ========================================================= */
 
-    // Wrapper Mask Messenger Helper
+    // Top-level PWA Wrapper Mask Controller
     function setParentMask(show) {
       try {
         window.top.postMessage(show ? 'show-badge-mask' : 'hide-badge-mask', '*');
+      } catch (e) {}
+    }
+
+    function sendParentHeartbeat() {
+      try {
+        window.top.postMessage('crux-game-active', '*');
       } catch (e) {}
     }
 
@@ -586,6 +592,7 @@
     const CHALK_COOLDOWN_MAX = 2.8;
     let isCruxActive = false;
     let slipFlashTimer = 0;
+    let lastHeartbeatTime = 0;
 
     const GRADES = ["V0", "V1", "V2", "V3", "V4", "V5", "V6", "V7", "V8", "V9", "V10", "V11", "V12", "V13", "V14+"];
 
@@ -730,9 +737,11 @@
       isCruxActive = false;
       slipFlashTimer = 0;
       isPlaying = true;
+      lastHeartbeatTime = performance.now();
 
-      // Notify parent BldrHub wrapper to hide the bottom white badge mask
+      // Signal wrapper to hide the badge mask immediately
       setParentMask(false);
+      sendParentHeartbeat();
 
       startOverlay.classList.add('hidden');
       gameOverModal.classList.add('hidden');
@@ -1135,6 +1144,12 @@
       lastTime = time;
 
       if (isPlaying) {
+        // Send a continuous heartbeat every 500ms to keep mask hidden during play
+        if (time - lastHeartbeatTime > 500) {
+          sendParentHeartbeat();
+          lastHeartbeatTime = time;
+        }
+
         const gradeLevel = Math.min(Math.floor(holdsTopped / 8), GRADES.length - 1);
         const currentHold = holds[climber.currentHoldIndex];
         const isRestJug = currentHold && currentHold.type.type === 'jug';
@@ -1412,7 +1427,7 @@
 
     // Initialize application
     window.onload = function() {
-      // Ensure badge mask is visible on launch
+      // Ensure the wrapper mask is displayed initially while menus are active
       setParentMask(true);
       resizeCanvas();
       generateHolds();
