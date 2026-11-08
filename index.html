@@ -724,6 +724,11 @@
       slipFlashTimer = 0;
       isPlaying = true;
 
+      // Notify parent BldrHub PWA wrapper to hide the bottom white badge mask
+      try {
+        window.top.postMessage('hide-badge-mask', '*');
+      } catch (e) {}
+
       startOverlay.classList.add('hidden');
       gameOverModal.classList.add('hidden');
       gameOverModal.classList.remove('flex');
